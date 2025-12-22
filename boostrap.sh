@@ -23,6 +23,20 @@ apt-get install -y --no-install-recommends \
   git \
   openssh-client
 
+echo
+echo "Installing Iris operator convenience wrapper..."
+
+cat << 'EOF' > /usr/local/bin/iris
+#!/usr/bin/env bash
+# -------------------------------------------------------------------
+# Operator Convenience Wrapper
+# -------------------------------------------------------------------
+
+exec python3 -m iris "$@"
+EOF
+
+chmod +x /usr/local/bin/iris
+
 SSH_DIR="/root/.ssh"
 mkdir -p "$SSH_DIR"
 chmod 700 "$SSH_DIR"

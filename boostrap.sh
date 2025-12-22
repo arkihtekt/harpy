@@ -42,17 +42,33 @@ ssh-keygen -t ed25519 -f "$KEY_APP" -N "" >/dev/null
 ssh-keygen -t ed25519 -f "$KEY_HOST" -N "" >/dev/null
 
 cat > "$SSH_DIR/config" <<EOF
-Host github-app
-  HostName github.com
-  User git
-  IdentityFile $KEY_APP
-  IdentitiesOnly yes
+# -------------------------------------------------------------------
+# Global Defaults
+# -------------------------------------------------------------------
+Host *
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+    TCPKeepAlive yes
+    AddKeysToAgent no
+    IdentitiesOnly yes
 
+# -------------------------------------------------------------------
+# github-app repo
+# -------------------------------------------------------------------
+Host github-app
+    HostName github.com
+    User git
+    IdentityFile $KEY_APP
+    IdentitiesOnly yes
+
+# -------------------------------------------------------------------
+# github-host repo
+# -------------------------------------------------------------------
 Host github-host
-  HostName github.com
-  User git
-  IdentityFile $KEY_HOST
-  IdentitiesOnly yes
+    HostName github.com
+    User git
+    IdentityFile $KEY_HOST
+    IdentitiesOnly yes
 EOF
 
 chmod 600 "$SSH_DIR/config"

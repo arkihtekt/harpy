@@ -21,7 +21,10 @@ apt-get install -y --no-install-recommends \
   ca-certificates \
   curl \
   git \
-  openssh-client
+  openssh-client \
+  python3 \
+  python3-venv \
+  python3-pip
 
 echo
 echo "Installing Iris operator convenience wrapper..."

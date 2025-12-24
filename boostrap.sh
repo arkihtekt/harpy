@@ -24,7 +24,8 @@ apt-get install -y --no-install-recommends \
   openssh-client \
   python3 \
   python3-venv \
-  python3-pip
+  python3-pip \
+  sqlite3
 
 echo
 echo "Installing Iris operator convenience wrapper..."
@@ -35,7 +36,30 @@ cat << 'EOF' > /usr/local/bin/iris
 # Operator Convenience Wrapper
 # -------------------------------------------------------------------
 
-exec python3 -m iris "$@"
+CMD="${1:-}"
+
+case "$CMD" in
+  run)
+    exec /opt/iris-host/scripts/iris-runner.sh
+    ;;
+  status)
+    exec /opt/iris-host/scripts/iris-status.sh
+    ;;
+  log)
+    exec /opt/iris-host/scripts/iris-log.sh "${@:2}"
+    ;;
+  doctor)
+    exec /opt/iris-host/scripts/iris-doctor.sh
+    ;;
+  *)
+    echo "Usage:"
+    echo "  iris run"
+    echo "  iris status"
+    echo "  iris log [--last|--today|--judgments]"
+    echo "  iris doctor"
+    exit 1
+    ;;
+esac
 EOF
 
 chmod +x /usr/local/bin/iris
@@ -108,8 +132,8 @@ ssh -o StrictHostKeyChecking=accept-new -T git@github-host || true
 echo
 echo "Cloning repositories..."
 
-APP_DIR="/opt/app"
-HOST_DIR="/opt/app-host"
+APP_DIR="/opt/iris"
+HOST_DIR="/opt/iris-host"
 
 if [ -e "$APP_DIR" ] || [ -e "$HOST_DIR" ]; then
   echo "Error: $APP_DIR or $HOST_DIR already exists."

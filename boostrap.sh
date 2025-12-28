@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Harpy bootstrap starting..."
+echo "Harpy public bootstrap starting..."
 echo
+
+# -------------------------------------------------------------------
+# Safety Checks
+# -------------------------------------------------------------------
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "Error: You must run as root."
@@ -14,8 +18,15 @@ if ! command -v apt-get >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "Installing base dependencies..."
+# -------------------------------------------------------------------
+# Base System Dependencies
+# -------------------------------------------------------------------
+
+echo "Installing base system dependencies..."
+echo
+
 export DEBIAN_FRONTEND=noninteractive
+
 apt-get update -y
 apt-get install -y --no-install-recommends \
   ca-certificates \
@@ -25,7 +36,43 @@ apt-get install -y --no-install-recommends \
   python3 \
   python3-venv \
   python3-pip \
-  sqlite3
+  sqlite3 \
+  gnupg \
+  lsb-release
+
+# -------------------------------------------------------------------
+# Install Caddy
+# -------------------------------------------------------------------
+
+echo
+echo "Installing Caddy web server..."
+
+if ! command -v caddy >/dev/null 2>&1; then
+  install -m 0755 -d /etc/apt/keyrings
+
+  curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/gpg.key | \
+    gpg --dearmor -o /etc/apt/keyrings/caddy.gpg
+
+  chmod a+r /etc/apt/keyrings/caddy.gpg
+
+  echo \
+    "deb [signed-by=/etc/apt/keyrings/caddy.gpg] \
+    https://dl.cloudsmith.io/public/caddy/stable/deb \
+    $(lsb_release -cs) main" \
+    > /etc/apt/sources.list.d/caddy.list
+
+  apt-get update -y
+  apt-get install -y --no-install-recommends caddy
+else
+  echo "Caddy already installed; skipping."
+fi
+
+# Enable but do not configure
+systemctl enable caddy
+
+# -------------------------------------------------------------------
+# Operator Convenience Wrapper
+# -------------------------------------------------------------------
 
 echo
 echo "Installing Iris operator convenience wrapper..."
@@ -35,6 +82,8 @@ cat << 'EOF' > /usr/local/bin/iris
 # -------------------------------------------------------------------
 # Operator Convenience Wrapper
 # -------------------------------------------------------------------
+
+set -euo pipefail
 
 CMD="${1:-}"
 
@@ -64,6 +113,13 @@ EOF
 
 chmod +x /usr/local/bin/iris
 
+# -------------------------------------------------------------------
+# SSH Key Provisioning
+# -------------------------------------------------------------------
+
+echo
+echo "Provisioning SSH keys..."
+
 SSH_DIR="/root/.ssh"
 mkdir -p "$SSH_DIR"
 chmod 700 "$SSH_DIR"
@@ -73,12 +129,10 @@ KEY_HOST="$SSH_DIR/id_ed25519_host"
 
 if [ -e "$KEY_APP" ] || [ -e "$KEY_HOST" ]; then
   echo "Error: SSH keys already exist in $SSH_DIR"
-  echo "You must strap to a virgin system with no prior configuration."
+  echo "This script must run on a virgin host."
   exit 1
 fi
 
-echo
-echo "Generating SSH keys for host..."
 ssh-keygen -t ed25519 -f "$KEY_APP" -N "" >/dev/null
 ssh-keygen -t ed25519 -f "$KEY_HOST" -N "" >/dev/null
 
@@ -114,8 +168,12 @@ EOF
 
 chmod 600 "$SSH_DIR/config"
 
+# -------------------------------------------------------------------
+# Operator Action Required
+# -------------------------------------------------------------------
+
 echo
-echo "You may add the following keys to dependent repos:"
+echo "You must now add the following SSH keys to GitHub:"
 echo "----------------------------------------"
 cat "${KEY_APP}.pub"
 echo
@@ -129,30 +187,38 @@ echo "Testing SSH access..."
 ssh -o StrictHostKeyChecking=accept-new -T git@github-app || true
 ssh -o StrictHostKeyChecking=accept-new -T git@github-host || true
 
+# -------------------------------------------------------------------
+# Clone Repositories
+# -------------------------------------------------------------------
+
 echo
-echo "Cloning repositories..."
+echo "Cloning Iris repositories..."
 
 APP_DIR="/opt/iris"
 HOST_DIR="/opt/iris-host"
 
 if [ -e "$APP_DIR" ] || [ -e "$HOST_DIR" ]; then
-  echo "Error: $APP_DIR or $HOST_DIR already exists."
-  echo "This script is intended for brand-new hosts only."
+  echo "Error: /opt/iris or /opt/iris-host already exists."
+  echo "This script must run on a virgin host."
   exit 1
 fi
 
-APP_REPO_SSH="git@github-app:arkihtekt/iris.git"
-HOST_REPO_SSH="git@github-host:arkihtekt/iris-host.git"
+git clone git@github-app:arkihtekt/iris.git "$APP_DIR"
+git clone git@github-host:arkihtekt/iris-host.git "$HOST_DIR"
 
-git clone "$APP_REPO_SSH" "$APP_DIR"
-git clone "$HOST_REPO_SSH" "$HOST_DIR"
+# -------------------------------------------------------------------
+# Handoff to Private Bootstrap
+# -------------------------------------------------------------------
 
 echo
-echo "Handing off..."
+echo "Public bootstrap complete."
+echo "Handing off to private host bootstrap..."
+echo
+
 cd "$HOST_DIR"
 
 if [ ! -x "./scripts/bootstrap.sh" ]; then
-  echo "error: ./scripts/bootstrap.sh not found or not executable"
+  echo "Error: ./scripts/bootstrap.sh not found or not executable."
   exit 1
 fi
 

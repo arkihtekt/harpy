@@ -67,8 +67,8 @@ else
   echo "Caddy already installed; skipping."
 fi
 
-# Enable but do not configure
-systemctl enable caddy
+# Enable and start (capability only; private bootstrap provides config)
+systemctl enable --now caddy
 
 # -------------------------------------------------------------------
 # Operator Convenience Wrapper
@@ -129,7 +129,7 @@ KEY_HOST="$SSH_DIR/id_ed25519_host"
 
 if [ -e "$KEY_APP" ] || [ -e "$KEY_HOST" ]; then
   echo "Error: SSH keys already exist in $SSH_DIR"
-  echo "This script must run on a virgin host."
+  echo "You must install on a virgin host."
   exit 1
 fi
 
@@ -199,7 +199,7 @@ HOST_DIR="/opt/iris-host"
 
 if [ -e "$APP_DIR" ] || [ -e "$HOST_DIR" ]; then
   echo "Error: /opt/iris or /opt/iris-host already exists."
-  echo "This script must run on a virgin host."
+  echo "You must install on a virgin host."
   exit 1
 fi
 

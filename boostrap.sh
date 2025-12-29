@@ -85,6 +85,13 @@ cat << 'EOF' > /usr/local/bin/iris
 
 set -euo pipefail
 
+# Guard against execution inside webhook venv
+if [[ -n "${VIRTUAL_ENV:-}" ]]; then
+  echo "Error: Iris operator commands must not be run inside a Python virtual environment."
+  echo "Deactivate the venv or run from a clean shell."
+  exit 1
+fi
+
 CMD="${1:-}"
 
 case "$CMD" in
@@ -222,4 +229,4 @@ if [ ! -x "./scripts/harpy/bootstrap.sh" ]; then
   exit 1
 fi
 
-exec ./scripts/bootstrap.sh
+exec ./scripts/harpy/bootstrap.sh

@@ -217,8 +217,8 @@ echo
 
 cd "$HOST_DIR"
 
-if [ ! -x "./scripts/bootstrap.sh" ]; then
-  echo "Error: ./scripts/bootstrap.sh not found or not executable."
+if [ ! -x "./scripts/harpy/bootstrap.sh" ]; then
+  echo "Error: ./scripts/harpy/bootstrap.sh not found or not executable."
   exit 1
 fi
 

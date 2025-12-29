@@ -1,4 +1,4 @@
-#curl -fsSL https://raw.githubusercontent.com/arkihtekt/harpy/main/bootstrap.sh | bash
+#curl -fsSL "https://raw.githubusercontent.com/arkihtekt/harpy/main/bootstrap.sh?$(date +%s)" | bash
 #
 #!/usr/bin/env bash
 set -euo pipefail

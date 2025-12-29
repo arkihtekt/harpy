@@ -1,3 +1,5 @@
+#curl -fsSL https://raw.githubusercontent.com/arkihtekt/harpy/main/boostrap.sh | bash
+#
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -58,7 +60,7 @@ if ! command -v caddy >/dev/null 2>&1; then
   echo \
     "deb [signed-by=/etc/apt/keyrings/caddy.gpg] \
     https://dl.cloudsmith.io/public/caddy/stable/deb \
-    $(lsb_release -cs) main" \
+    jammy main" \
     > /etc/apt/sources.list.d/caddy.list
 
   apt-get update -y

@@ -217,13 +217,15 @@ EOF
 chmod 600 "$SSH_DIR/config"
 
 # -------------------------------------------------------------------
-# SSH Authorization Gate
+# SSH Verification / Authorization Gate
 # -------------------------------------------------------------------
 
 echo
 echo "Verifying SSH access..."
 
 if verify_github_ssh git@github-app && verify_github_ssh git@github-host; then
+  echo "SSH access verified."
+
   mkdir -p "$HARPY_STATE_DIR"
   chmod 700 "$HARPY_STATE_DIR"
   touch "$HARPY_KEYS_READY_FILE"

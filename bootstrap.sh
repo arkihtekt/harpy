@@ -280,6 +280,6 @@ echo
 
 cd /opt/iris-host || exit 1
 
-echo "Next step (operator action required):"
+echo "Operation required:"
 echo "  ./scripts/harpy/bootstrap.sh"
 echo

@@ -51,6 +51,20 @@ mark_degraded() {
   chmod 600 "$HARPY_DEGRADED_FILE"
 }
 
+verify_github_ssh() {
+  local HOST="$1"
+  local STATUS=0
+
+  ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -T "$HOST" >/dev/null 2>&1 || STATUS=$?
+
+  # GitHub returns exit code 1 on successful authentication (no shell access).
+  if [ "$STATUS" -eq 1 ]; then
+    return 0
+  fi
+
+  return "$STATUS"
+}
+
 # -------------------------------------------------------------------
 # Safety Checks
 # -------------------------------------------------------------------
@@ -232,13 +246,13 @@ fi
 echo
 echo "Verifying SSH access..."
 
-if ! ssh -o StrictHostKeyChecking=accept-new -T git@github-app 2>&1 | grep -q "successfully authenticated"; then
+if ! verify_github_ssh git@github-app; then
   echo "Error: github-app key not authorized or not functional."
   echo "Authorize the github-app key and re-run this bootstrap."
   exit 1
 fi
 
-if ! ssh -o StrictHostKeyChecking=accept-new -T git@github-host 2>&1 | grep -q "successfully authenticated"; then
+if ! verify_github_ssh git@github-host; then
   echo "Error: github-host key not authorized or not functional."
   echo "Authorize the github-host key and re-run this bootstrap."
   exit 1
@@ -279,3 +293,4 @@ if [ ! -x "./scripts/harpy/bootstrap.sh" ]; then
 fi
 
 exec ./scripts/harpy/bootstrap.sh
+

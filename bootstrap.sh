@@ -1,3 +1,4 @@
+#HARPY_ALLOW_DEGRADED=1 \
 #curl -fsSL "https://raw.githubusercontent.com/arkihtekt/harpy/main/bootstrap.sh?$(date +%s)" | bash
 #
 #!/usr/bin/env bash
@@ -5,6 +6,49 @@ set -euo pipefail
 
 echo "Harpy public bootstrap starting..."
 echo
+
+# -------------------------------------------------------------------
+# Flags
+# -------------------------------------------------------------------
+
+ALLOW_DEGRADED=false
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --allow-degraded)
+      ALLOW_DEGRADED=true
+      shift
+      ;;
+    *)
+      echo "Error: Unknown argument: $1"
+      exit 1
+      ;;
+  esac
+done
+
+if [ "${HARPY_ALLOW_DEGRADED:-}" = "1" ]; then
+  ALLOW_DEGRADED=true
+fi
+
+HARPY_STATE_DIR="/var/lib/harpy"
+HARPY_DEGRADED_FILE="${HARPY_STATE_DIR}/degraded"
+
+mark_degraded() {
+  local COMPONENT="$1"
+  local REASON="$2"
+
+  mkdir -p "$HARPY_STATE_DIR"
+  chmod 700 "$HARPY_STATE_DIR"
+
+  {
+    echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo "component=${COMPONENT}"
+    echo "reason=${REASON}"
+    echo
+  } >> "$HARPY_DEGRADED_FILE"
+
+  chmod 600 "$HARPY_DEGRADED_FILE"
+}
 
 # -------------------------------------------------------------------
 # Safety Checks
@@ -57,20 +101,44 @@ if ! command -v caddy >/dev/null 2>&1; then
 
   chmod a+r /etc/apt/keyrings/caddy.gpg
 
-  echo \
-    "deb [signed-by=/etc/apt/keyrings/caddy.gpg] \
-    https://dl.cloudsmith.io/public/caddy/stable/deb \
-    jammy main" \
-    > /etc/apt/sources.list.d/caddy.list
+  CADDY_REPO_BASE="https://dl.cloudsmith.io/public/caddy/stable/debian"
+  CADDY_CODENAME="$(lsb_release -cs)"
 
-  apt-get update -y
-  apt-get install -y --no-install-recommends caddy
+  if ! curl -fsSL "${CADDY_REPO_BASE}/dists/${CADDY_CODENAME}/Release" >/dev/null 2>&1; then
+    if curl -fsSL "${CADDY_REPO_BASE}/dists/jammy/Release" >/dev/null 2>&1; then
+      CADDY_CODENAME="jammy"
+    else
+      echo "Error: Caddy repository unavailable (codename: ${CADDY_CODENAME})."
+      if [ "$ALLOW_DEGRADED" = true ]; then
+        echo "WARNING: Continuing in DEGRADED MODE. You must manually install Caddy and re-run validation."
+        mark_degraded "caddy" "repo_unavailable"
+        CADDY_CODENAME=""
+      else
+        exit 1
+      fi
+    fi
+  fi
+
+  if [ -n "$CADDY_CODENAME" ]; then
+    rm -f /etc/apt/sources.list.d/caddy.list
+
+    echo \
+      "deb [signed-by=/etc/apt/keyrings/caddy.gpg] \
+      ${CADDY_REPO_BASE} \
+      ${CADDY_CODENAME} main" \
+      > /etc/apt/sources.list.d/caddy.list
+
+    apt-get update -y
+    apt-get install -y --no-install-recommends caddy
+  fi
 else
   echo "Caddy already installed; skipping."
 fi
 
 # Enable and start (capability only; private bootstrap provides config)
-systemctl enable --now caddy
+if command -v caddy >/dev/null 2>&1; then
+  systemctl enable --now caddy
+fi
 
 # -------------------------------------------------------------------
 # Operator Convenience Wrapper

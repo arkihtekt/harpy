@@ -1,6 +1,3 @@
-#HARPY_ALLOW_DEGRADED=1 \
-#curl -fsSL "https://raw.githubusercontent.com/arkihtekt/harpy/main/bootstrap.sh?$(date +%s)" | bash
-#
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -32,6 +29,7 @@ fi
 
 HARPY_STATE_DIR="/var/lib/harpy"
 HARPY_DEGRADED_FILE="${HARPY_STATE_DIR}/degraded"
+HARPY_KEYS_READY_FILE="${HARPY_STATE_DIR}/keys_ready"
 
 mark_degraded() {
   local COMPONENT="$1"
@@ -110,7 +108,7 @@ if ! command -v caddy >/dev/null 2>&1; then
     else
       echo "Error: Caddy repository unavailable (codename: ${CADDY_CODENAME})."
       if [ "$ALLOW_DEGRADED" = true ]; then
-        echo "WARNING: Continuing in DEGRADED MODE. You must manually install Caddy and re-run validation."
+        echo "WARNING: Continuing in DEGRADED MODE. Manual intervention required."
         mark_degraded "caddy" "repo_unavailable"
         CADDY_CODENAME=""
       else
@@ -135,7 +133,6 @@ else
   echo "Caddy already installed; skipping."
 fi
 
-# Enable and start (capability only; private bootstrap provides config)
 if command -v caddy >/dev/null 2>&1; then
   systemctl enable --now caddy
 fi
@@ -145,20 +142,14 @@ fi
 # -------------------------------------------------------------------
 
 echo
-echo "Installing Iris operator convenience wrapper..."
+echo "Installing operator convenience wrapper..."
 
 cat << 'EOF' > /usr/local/bin/iris
 #!/usr/bin/env bash
-# -------------------------------------------------------------------
-# Operator Convenience Wrapper
-# -------------------------------------------------------------------
-
 set -euo pipefail
 
-# Guard against execution inside webhook venv
 if [[ -n "${VIRTUAL_ENV:-}" ]]; then
-  echo "Error: Iris operator commands must not be run inside a Python virtual environment."
-  echo "Deactivate the venv or run from a clean shell."
+  echo "Error: Operator commands must not be run inside a Python virtual environment."
   exit 1
 fi
 
@@ -212,9 +203,6 @@ else
 fi
 
 cat > "$SSH_DIR/config" <<EOF
-# -------------------------------------------------------------------
-# Global Defaults
-# -------------------------------------------------------------------
 Host *
     ServerAliveInterval 60
     ServerAliveCountMax 3
@@ -222,18 +210,12 @@ Host *
     AddKeysToAgent no
     IdentitiesOnly yes
 
-# -------------------------------------------------------------------
-# github-app repo
-# -------------------------------------------------------------------
 Host github-app
     HostName github.com
     User git
     IdentityFile $KEY_APP
     IdentitiesOnly yes
 
-# -------------------------------------------------------------------
-# github-host repo
-# -------------------------------------------------------------------
 Host github-host
     HostName github.com
     User git
@@ -244,26 +226,35 @@ EOF
 chmod 600 "$SSH_DIR/config"
 
 # -------------------------------------------------------------------
-# Operator Action Required
+# Operator Action Required (Checkpoint)
+# -------------------------------------------------------------------
+
+if [ ! -f "$HARPY_KEYS_READY_FILE" ]; then
+  echo
+  echo "SSH keys generated. Manual authorization required."
+  echo "----------------------------------------"
+  echo "github-app key:"
+  cat "${KEY_APP}.pub"
+  echo
+  echo "github-host key:"
+  cat "${KEY_HOST}.pub"
+  echo "----------------------------------------"
+  echo
+  echo "Authorize the above keys, then re-run this bootstrap."
+  mkdir -p "$HARPY_STATE_DIR"
+  chmod 700 "$HARPY_STATE_DIR"
+  touch "$HARPY_KEYS_READY_FILE"
+  chmod 600 "$HARPY_KEYS_READY_FILE"
+  exit 0
+fi
+
+# -------------------------------------------------------------------
+# SSH Verification
 # -------------------------------------------------------------------
 
 echo
-echo "You must now add the following SSH keys to GitHub:"
-echo "----------------------------------------"
-echo "github-app (arkihtekt/iris):"
-cat "${KEY_APP}.pub"
-echo
-echo "github-host (arkihtekt/iris-host):"
-cat "${KEY_HOST}.pub"
-echo "----------------------------------------"
-echo
-read -r -p "Press ENTER once keys are added."
-
-echo
-echo "Testing SSH access (github-app)..."
+echo "Verifying SSH access..."
 ssh -o StrictHostKeyChecking=accept-new -T git@github-app || true
-echo
-echo "Testing SSH access (github-host)..."
 ssh -o StrictHostKeyChecking=accept-new -T git@github-host || true
 
 # -------------------------------------------------------------------
@@ -271,14 +262,13 @@ ssh -o StrictHostKeyChecking=accept-new -T git@github-host || true
 # -------------------------------------------------------------------
 
 echo
-echo "Cloning Iris repositories..."
+echo "Cloning repositories..."
 
 APP_DIR="/opt/iris"
 HOST_DIR="/opt/iris-host"
 
 if [ -e "$APP_DIR" ] || [ -e "$HOST_DIR" ]; then
-  echo "Error: /opt/iris or /opt/iris-host already exists."
-  echo "You must install on a virgin host."
+  echo "Error: Target directories already exist."
   exit 1
 fi
 
@@ -286,18 +276,18 @@ git clone git@github-app:arkihtekt/iris.git "$APP_DIR"
 git clone git@github-host:arkihtekt/iris-host.git "$HOST_DIR"
 
 # -------------------------------------------------------------------
-# Handoff to Private Bootstrap
+# Handoff
 # -------------------------------------------------------------------
 
 echo
 echo "Public bootstrap complete."
-echo "Handing off to private host bootstrap..."
+echo "Handing off to private bootstrap..."
 echo
 
 cd "$HOST_DIR"
 
 if [ ! -x "./scripts/harpy/bootstrap.sh" ]; then
-  echo "Error: ./scripts/harpy/bootstrap.sh not found or not executable."
+  echo "Error: Private bootstrap script missing or not executable."
   exit 1
 fi
 

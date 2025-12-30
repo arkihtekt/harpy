@@ -55,7 +55,7 @@ verify_github_ssh() {
   local HOST="$1"
   local STATUS=0
 
-  ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -T "$HOST" >/dev/null 2>&1 || STATUS=$?
+  ssh -n -o BatchMode=yes -o StrictHostKeyChecking=accept-new -T "$HOST" </dev/null >/dev/null 2>&1 || STATUS=$?
 
   # GitHub returns exit code 1 on successful authentication (no shell access).
   if [ "$STATUS" -eq 1 ]; then

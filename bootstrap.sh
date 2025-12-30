@@ -232,10 +232,6 @@ if [ ! -f "$HARPY_KEYS_READY_FILE" ]; then
   echo "----------------------------------------"
   echo
   echo "Authorize the above keys, then re-run this bootstrap."
-  mkdir -p "$HARPY_STATE_DIR"
-  chmod 700 "$HARPY_STATE_DIR"
-  touch "$HARPY_KEYS_READY_FILE"
-  chmod 600 "$HARPY_KEYS_READY_FILE"
   exit 0
 fi
 
@@ -257,6 +253,15 @@ if ! verify_github_ssh git@github-host; then
   echo "Authorize the github-host key and re-run this bootstrap."
   exit 1
 fi
+
+# -------------------------------------------------------------------
+# Mark Keys Authorized
+# -------------------------------------------------------------------
+
+mkdir -p "$HARPY_STATE_DIR"
+chmod 700 "$HARPY_STATE_DIR"
+touch "$HARPY_KEYS_READY_FILE"
+chmod 600 "$HARPY_KEYS_READY_FILE"
 
 # -------------------------------------------------------------------
 # Clone Repositories
@@ -293,4 +298,3 @@ if [ ! -x "./scripts/harpy/bootstrap.sh" ]; then
 fi
 
 exec ./scripts/harpy/bootstrap.sh
-

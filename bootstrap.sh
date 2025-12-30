@@ -205,13 +205,11 @@ KEY_APP="$SSH_DIR/id_ed25519_app"
 KEY_HOST="$SSH_DIR/id_ed25519_host"
 
 if [ -e "$KEY_APP" ] || [ -e "$KEY_HOST" ]; then
-  echo "Error: SSH keys already exist in $SSH_DIR"
-  echo "You must install on a virgin host."
-  exit 1
+  echo "SSH keys already present; reusing existing keys."
+else
+  ssh-keygen -t ed25519 -f "$KEY_APP" -N "" >/dev/null
+  ssh-keygen -t ed25519 -f "$KEY_HOST" -N "" >/dev/null
 fi
-
-ssh-keygen -t ed25519 -f "$KEY_APP" -N "" >/dev/null
-ssh-keygen -t ed25519 -f "$KEY_HOST" -N "" >/dev/null
 
 cat > "$SSH_DIR/config" <<EOF
 # -------------------------------------------------------------------
@@ -252,16 +250,20 @@ chmod 600 "$SSH_DIR/config"
 echo
 echo "You must now add the following SSH keys to GitHub:"
 echo "----------------------------------------"
+echo "github-app (arkihtekt/iris):"
 cat "${KEY_APP}.pub"
 echo
+echo "github-host (arkihtekt/iris-host):"
 cat "${KEY_HOST}.pub"
 echo "----------------------------------------"
 echo
 read -r -p "Press ENTER once keys are added."
 
 echo
-echo "Testing SSH access..."
+echo "Testing SSH access (github-app)..."
 ssh -o StrictHostKeyChecking=accept-new -T git@github-app || true
+echo
+echo "Testing SSH access (github-host)..."
 ssh -o StrictHostKeyChecking=accept-new -T git@github-host || true
 
 # -------------------------------------------------------------------

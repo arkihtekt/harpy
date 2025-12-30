@@ -1,3 +1,6 @@
+#HARPY_ALLOW_DEGRADED=1 \
+#curl -fsSL "https://raw.githubusercontent.com/arkihtekt/harpy/main/bootstrap.sh?$(date +%s)" | bash
+#
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -92,42 +95,16 @@ echo
 echo "Installing Caddy web server..."
 
 if ! command -v caddy >/dev/null 2>&1; then
-  install -m 0755 -d /etc/apt/keyrings
-
-  curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/gpg.key | \
-    gpg --dearmor -o /etc/apt/keyrings/caddy.gpg
-
-  chmod a+r /etc/apt/keyrings/caddy.gpg
-
-  CADDY_REPO_BASE="https://dl.cloudsmith.io/public/caddy/stable/debian"
-  CADDY_CODENAME="$(lsb_release -cs)"
-
-  if ! curl -fsSL "${CADDY_REPO_BASE}/dists/${CADDY_CODENAME}/Release" >/dev/null 2>&1; then
-    if curl -fsSL "${CADDY_REPO_BASE}/dists/jammy/Release" >/dev/null 2>&1; then
-      CADDY_CODENAME="jammy"
+  if apt-get install -y --no-install-recommends caddy; then
+    :
+  else
+    echo "Error: Caddy install failed."
+    if [ "$ALLOW_DEGRADED" = true ]; then
+      echo "WARNING: Continuing in DEGRADED MODE. Manual intervention required."
+      mark_degraded "caddy" "apt_install_failed"
     else
-      echo "Error: Caddy repository unavailable (codename: ${CADDY_CODENAME})."
-      if [ "$ALLOW_DEGRADED" = true ]; then
-        echo "WARNING: Continuing in DEGRADED MODE. Manual intervention required."
-        mark_degraded "caddy" "repo_unavailable"
-        CADDY_CODENAME=""
-      else
-        exit 1
-      fi
+      exit 1
     fi
-  fi
-
-  if [ -n "$CADDY_CODENAME" ]; then
-    rm -f /etc/apt/sources.list.d/caddy.list
-
-    echo \
-      "deb [signed-by=/etc/apt/keyrings/caddy.gpg] \
-      ${CADDY_REPO_BASE} \
-      ${CADDY_CODENAME} main" \
-      > /etc/apt/sources.list.d/caddy.list
-
-    apt-get update -y
-    apt-get install -y --no-install-recommends caddy
   fi
 else
   echo "Caddy already installed; skipping."
@@ -254,8 +231,18 @@ fi
 
 echo
 echo "Verifying SSH access..."
-ssh -o StrictHostKeyChecking=accept-new -T git@github-app || true
-ssh -o StrictHostKeyChecking=accept-new -T git@github-host || true
+
+if ! ssh -o StrictHostKeyChecking=accept-new -T git@github-app 2>&1 | grep -q "successfully authenticated"; then
+  echo "Error: github-app key not authorized or not functional."
+  echo "Authorize the github-app key and re-run this bootstrap."
+  exit 1
+fi
+
+if ! ssh -o StrictHostKeyChecking=accept-new -T git@github-host 2>&1 | grep -q "successfully authenticated"; then
+  echo "Error: github-host key not authorized or not functional."
+  echo "Authorize the github-host key and re-run this bootstrap."
+  exit 1
+fi
 
 # -------------------------------------------------------------------
 # Clone Repositories

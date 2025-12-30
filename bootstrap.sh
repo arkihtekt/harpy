@@ -217,10 +217,18 @@ EOF
 chmod 600 "$SSH_DIR/config"
 
 # -------------------------------------------------------------------
-# Operator Action Required (Checkpoint)
+# SSH Authorization Gate
 # -------------------------------------------------------------------
 
-if [ ! -f "$HARPY_KEYS_READY_FILE" ]; then
+echo
+echo "Verifying SSH access..."
+
+if verify_github_ssh git@github-app && verify_github_ssh git@github-host; then
+  mkdir -p "$HARPY_STATE_DIR"
+  chmod 700 "$HARPY_STATE_DIR"
+  touch "$HARPY_KEYS_READY_FILE"
+  chmod 600 "$HARPY_KEYS_READY_FILE"
+else
   echo
   echo "SSH keys generated. Manual authorization required."
   echo "----------------------------------------"
@@ -234,34 +242,6 @@ if [ ! -f "$HARPY_KEYS_READY_FILE" ]; then
   echo "Authorize the above keys, then re-run this bootstrap."
   exit 0
 fi
-
-# -------------------------------------------------------------------
-# SSH Verification
-# -------------------------------------------------------------------
-
-echo
-echo "Verifying SSH access..."
-
-if ! verify_github_ssh git@github-app; then
-  echo "Error: github-app key not authorized or not functional."
-  echo "Authorize the github-app key and re-run this bootstrap."
-  exit 1
-fi
-
-if ! verify_github_ssh git@github-host; then
-  echo "Error: github-host key not authorized or not functional."
-  echo "Authorize the github-host key and re-run this bootstrap."
-  exit 1
-fi
-
-# -------------------------------------------------------------------
-# Mark Keys Authorized
-# -------------------------------------------------------------------
-
-mkdir -p "$HARPY_STATE_DIR"
-chmod 700 "$HARPY_STATE_DIR"
-touch "$HARPY_KEYS_READY_FILE"
-chmod 600 "$HARPY_KEYS_READY_FILE"
 
 # -------------------------------------------------------------------
 # Clone Repositories

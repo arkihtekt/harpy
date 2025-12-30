@@ -223,14 +223,7 @@ chmod 600 "$SSH_DIR/config"
 echo
 echo "Verifying SSH access..."
 
-if verify_github_ssh git@github-app && verify_github_ssh git@github-host; then
-  echo "SSH access verified."
-
-  mkdir -p "$HARPY_STATE_DIR"
-  chmod 700 "$HARPY_STATE_DIR"
-  touch "$HARPY_KEYS_READY_FILE"
-  chmod 600 "$HARPY_KEYS_READY_FILE"
-else
+if ! verify_github_ssh git@github-app; then
   echo
   echo "SSH keys generated. Manual authorization required."
   echo "----------------------------------------"
@@ -244,6 +237,28 @@ else
   echo "Authorize the above keys, then re-run this bootstrap."
   exit 0
 fi
+
+if ! verify_github_ssh git@github-host; then
+  echo
+  echo "SSH keys generated. Manual authorization required."
+  echo "----------------------------------------"
+  echo "github-app key:"
+  cat "${KEY_APP}.pub"
+  echo
+  echo "github-host key:"
+  cat "${KEY_HOST}.pub"
+  echo "----------------------------------------"
+  echo
+  echo "Authorize the above keys, then re-run this bootstrap."
+  exit 0
+fi
+
+echo "SSH access verified."
+
+mkdir -p "$HARPY_STATE_DIR"
+chmod 700 "$HARPY_STATE_DIR"
+touch "$HARPY_KEYS_READY_FILE"
+chmod 600 "$HARPY_KEYS_READY_FILE"
 
 # -------------------------------------------------------------------
 # Clone Repositories

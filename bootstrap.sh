@@ -223,22 +223,14 @@ chmod 600 "$SSH_DIR/config"
 echo
 echo "Verifying SSH access..."
 
-if ! verify_github_ssh git@github-app; then
-  echo
-  echo "SSH keys generated. Manual authorization required."
-  echo "----------------------------------------"
-  echo "github-app key:"
-  cat "${KEY_APP}.pub"
-  echo
-  echo "github-host key:"
-  cat "${KEY_HOST}.pub"
-  echo "----------------------------------------"
-  echo
-  echo "Authorize the above keys, then re-run this bootstrap."
-  exit 0
-fi
+set +e
+verify_github_ssh git@github-app
+APP_STATUS=$?
+verify_github_ssh git@github-host
+HOST_STATUS=$?
+set -e
 
-if ! verify_github_ssh git@github-host; then
+if [ "$APP_STATUS" -ne 0 ] || [ "$HOST_STATUS" -ne 0 ]; then
   echo
   echo "SSH keys generated. Manual authorization required."
   echo "----------------------------------------"

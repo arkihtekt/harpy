@@ -271,19 +271,15 @@ git clone git@github-app:arkihtekt/iris.git "$APP_DIR"
 git clone git@github-host:arkihtekt/iris-host.git "$HOST_DIR"
 
 # -------------------------------------------------------------------
-# Handoff
+# Handoff (Explicit Operator Boundary)
 # -------------------------------------------------------------------
 
 echo
 echo "Public bootstrap complete."
-echo "Handing off to private bootstrap..."
 echo
 
-cd "$HOST_DIR"
+cd /opt/iris-host || exit 1
 
-if [ ! -x "./scripts/harpy/bootstrap.sh" ]; then
-  echo "Error: Private bootstrap script missing or not executable."
-  exit 1
-fi
-
-exec ./scripts/harpy/bootstrap.sh
+echo "Next step (operator action required):"
+echo "  ./scripts/harpy/bootstrap.sh"
+echo

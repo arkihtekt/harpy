@@ -271,6 +271,40 @@ git clone git@github-app:arkihtekt/iris.git "$APP_DIR"
 git clone git@github-host:arkihtekt/iris-host.git "$HOST_DIR"
 
 # -------------------------------------------------------------------
+# Runtime Ownership & Docker Access Guard
+# -------------------------------------------------------------------
+
+echo
+echo "Configuring Iris runtime ownership..."
+
+# Determine invoking non-root operator (if any)
+OPERATOR_USER="${SUDO_USER:-}"
+
+if [ -n "$OPERATOR_USER" ] && [ "$OPERATOR_USER" != "root" ]; then
+  echo "Detected operator user: $OPERATOR_USER"
+
+  # Ensure docker group exists
+  if ! getent group docker >/dev/null 2>&1; then
+    groupadd docker
+  fi
+
+  # Ensure operator is in docker group
+  if ! id -nG "$OPERATOR_USER" | grep -qw docker; then
+    usermod -aG docker "$OPERATOR_USER"
+    echo "Added $OPERATOR_USER to docker group."
+  fi
+
+  # Ensure runtime directories are operator-owned
+  chown -R "$OPERATOR_USER":"$OPERATOR_USER" /opt/iris-host
+  mkdir -p /data
+  chown -R "$OPERATOR_USER":"$OPERATOR_USER" /data
+
+else
+  echo "No non-root operator detected; leaving ownership unchanged."
+fi
+
+
+# -------------------------------------------------------------------
 # Handoff (Explicit Operator Boundary)
 # -------------------------------------------------------------------
 

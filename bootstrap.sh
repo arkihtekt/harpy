@@ -271,7 +271,7 @@ git clone git@github-app:arkihtekt/iris.git "$APP_DIR"
 git clone git@github-host:arkihtekt/iris-host.git "$HOST_DIR"
 
 # -------------------------------------------------------------------
-# Runtime Ownership & Docker Access Guard
+# Runtime Ownership and Access Guard
 # -------------------------------------------------------------------
 
 echo
